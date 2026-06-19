@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Braidenhill Farm — Strategy Console</title>
+<meta name="description" content="Private working console: the path to >£500k and the quickest end. Not legal advice.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/*
+  Braidenhill Strategy Console
+  Methodology: token-driven (CSS custom properties) + ITCSS-ish layering
+  (settings -> base -> layout -> components -> utilities). Fluid type via clamp().
+  Motion is progressive enhancement and is disabled under prefers-reduced-motion.
+  Content is fully readable with zero JavaScript.
+*/
+
+/* ---------- settings: design tokens ---------- */
+:root{
+  --ink:#0b0e13;
+  --bg:#0e1218;
+  --surface:#151b24;
+  --surface-2:#1b232e;
+  --line:rgba(255,255,255,.09);
+  --line-strong:rgba(255,255,255,.16);
+  --text:#e9eef6;
+  --muted:#9aa7b8;
+  --muted-2:#6f7d8f;
+  --gold:#d8ad5c;
+  --gold-soft:#e6c281;
+  --ok:#69b487;
+  --warn:#d8b25a;
+  --risk:#dd8160;
+  --accent:#7fa8c9;
+  --glow:.18;            /* driven by GSAP ambient */
+  --maxw:1120px;
+  --rail:264px;
+  --r-sm:10px; --r-md:16px; --r-lg:22px;
+  --shadow:0 18px 50px -24px rgba(0,0,0,.7);
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --font-sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  --font-serif:'Fraunces',Georgia,'Times New Roman',serif;
+}
+
+/* ---------- base ---------- */
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--font-sans);font-size:clamp(15px,.5vw + 14px,17px);
+  line-height:1.65;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+h1,h2,h3,h4{font-family:var(--font-serif);font-weight:500;line-height:1.1;letter-spacing:-.01em;margin:0}
+p{margin:0 0 1em}
+a{color:var(--gold-soft);text-decoration:none}
+a:hover{text-decoration:underline}
+strong{color:#fff;font-weight:600}
+::selection{background:rgba(216,173,92,.28)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px}
+img{max-width:100%}
+
+/* canvas + texture */
+#bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block;pointer-events:none}
+.grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ---------- layout ---------- */
+.topbar{
+  position:fixed;inset:0 0 auto 0;z-index:40;height:60px;display:flex;align-items:center;gap:14px;
+  padding:0 clamp(14px,3vw,26px);
+  background:linear-gradient(to bottom,rgba(11,14,19,.92),rgba(11,14,19,.66) 70%,transparent);
+  backdrop-filter:blur(8px);
+}
+.brand{display:flex;align-items:center;gap:11px;font-weight:600;letter-spacing:.02em}
+.brand__mark{width:26px;height:26px;flex:none;border-radius:7px;
+  background:radial-gradient(120% 120% at 30% 20%,var(--gold-soft),var(--gold) 55%,#9c7a35);
+  box-shadow:0 0 calc(20px * var(--glow)) rgba(216,173,92,.7)}
+.brand small{color:var(--muted);font-weight:400;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase}
+.topbar__spacer{flex:1}
+.scrollbar{position:absolute;left:0;bottom:0;height:2px;width:100%;background:transparent}
+.scrollbar__fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-soft))}
+.menu-btn{display:none;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid var(--line);
+  background:var(--surface);color:var(--text);border-radius:11px;cursor:pointer}
+.menu-btn:active{transform:scale(.96)}
+
+.sidenav{
+  position:fixed;top:0;left:0;z-index:45;width:var(--rail);height:100vh;height:100dvh;
+  padding:74px 18px 24px;display:flex;flex-direction:column;gap:4px;
+  border-right:1px solid var(--line);background:rgba(13,17,23,.72);backdrop-filter:blur(10px);
+}
+.sidenav__eyebrow{color:var(--muted-2);font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;margin:8px 12px 6px}
+.navlink{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:11px;color:var(--muted);
+  font-size:.92rem;transition:background .25s var(--ease),color .25s var(--ease)}
+.navlink b{font-family:var(--font-serif);font-size:.78rem;color:var(--muted-2);min-width:20px;font-weight:500}
+.navlink:hover{background:var(--surface);color:var(--text);text-decoration:none}
+.navlink.is-active{background:linear-gradient(100deg,rgba(216,173,92,.16),rgba(216,173,92,.04));color:#fff}
+.navlink.is-active b{color:var(--gold)}
+.sidenav__foot{margin-top:auto;color:var(--muted-2);font-size:.72rem;line-height:1.5}
+
+.scrim{position:fixed;inset:0;z-index:44;background:rgba(5,7,10,.6);opacity:0;visibility:hidden;
+  transition:opacity .3s,visibility .3s}
+body.nav-open .scrim{opacity:1;visibility:visible}
+
+main{position:relative;z-index:2;margin-left:var(--rail)}
+.section{padding:clamp(58px,8vh,118px) clamp(18px,4vw,40px);scroll-margin-top:60px}
+.wrap{max-width:var(--maxw);margin-inline:auto}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;color:var(--gold);font-size:.74rem;letter-spacing:.2em;
+  text-transform:uppercase;margin-bottom:18px}
+.eyebrow::before{content:"";width:26px;height:1px;background:var(--gold);opacity:.7}
+.section h2{font-size:clamp(1.7rem,1rem + 2.4vw,2.9rem);margin-bottom:.5em;max-width:18ch}
+.lede{color:var(--muted);font-size:clamp(1rem,.6vw + .95rem,1.18rem);max-width:62ch}
+
+/* ---------- hero ---------- */
+.hero{min-height:100vh;min-height:100dvh;display:flex;align-items:center;
+  padding-top:90px;padding-bottom:60px;position:relative;overflow:hidden}
+.hero__halo{position:absolute;z-index:-1;width:60vmax;height:60vmax;right:-18vmax;top:-12vmax;border-radius:50%;
+  background:radial-gradient(circle,rgba(216,173,92,.16),transparent 62%);filter:blur(8px);pointer-events:none}
+.hero .eyebrow{margin-bottom:22px}
+.hero h1{font-size:clamp(2.4rem,1rem + 6.6vw,5.6rem);font-weight:600;letter-spacing:-.025em;max-width:16ch}
+.hero h1 .line{display:block;overflow:hidden}
+.hero h1 .line > span{display:block}
+.hero h1 em{font-style:italic;color:var(--gold-soft)}
+.hero__sub{margin-top:26px;max-width:60ch;color:var(--muted);font-size:clamp(1rem,.5vw + 1rem,1.28rem)}
+.hero__sub b{color:var(--text)}
+.hero__cta{margin-top:34px;display:flex;flex-wrap:wrap;gap:12px}
+.btn{display:inline-flex;align-items:center;gap:9px;padding:12px 20px;border-radius:12px;font-weight:600;
+  font-size:.95rem;cursor:pointer;border:1px solid transparent;transition:transform .2s var(--ease),background .25s,border-color .25s}
+.btn:hover{text-decoration:none;transform:translateY(-2px)}
+.btn--primary{background:linear-gradient(180deg,var(--gold-soft),var(--gold));color:#241a06}
+.btn--ghost{border-color:var(--line-strong);color:var(--text);background:rgba(255,255,255,.02)}
+.scroll-hint{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);color:var(--muted-2);
+  font-size:.74rem;letter-spacing:.18em;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:8px}
+.scroll-hint .dot{width:5px;height:5px;border-radius:50%;background:var(--gold)}
+
+/* metric grid */
+.metrics{margin-top:54px;display:grid;gap:14px;grid-template-columns:repeat(6,1fr)}
+.metric{grid-column:span 2;background:linear-gradient(180deg,var(--surface),rgba(21,27,36,.55));
+  border:1px solid var(--line);border-radius:var(--r-md);padding:20px;position:relative;overflow:hidden}
+.metric::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 100% 0,rgba(216,173,92,.10),transparent 60%);pointer-events:none}
+.metric__v{font-family:var(--font-serif);font-size:clamp(1.5rem,.6vw + 1.5rem,2.15rem);color:#fff;font-variant-numeric:tabular-nums;line-height:1}
+.metric__v .u{color:var(--gold);font-size:.6em}
+.metric__k{margin-top:9px;color:var(--muted);font-size:.84rem;line-height:1.4}
+.metric--wide{grid-column:span 3}
+.metric--gold{border-color:rgba(216,173,92,.4)}
+.metric--gold .metric__v{color:var(--gold-soft)}
+
+/* ---------- generic cards ---------- */
+.grid{display:grid;gap:18px}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.cols-2{grid-template-columns:repeat(2,1fr)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:24px;position:relative}
+.card h3{font-size:1.2rem;margin-bottom:.5em;color:#fff}
+.card p:last-child{margin-bottom:0}
+.card__n{font-family:var(--font-serif);color:var(--gold);font-size:.8rem;letter-spacing:.12em;display:block;margin-bottom:12px}
+.tag{display:inline-block;font-size:.72rem;letter-spacing:.04em;padding:3px 9px;border-radius:999px;border:1px solid var(--line-strong);color:var(--muted);background:rgba(255,255,255,.02)}
+.tag--gold{color:var(--gold-soft);border-color:rgba(216,173,92,.4)}
+.callout{border-left:3px solid var(--gold);background:rgba(216,173,92,.06);padding:16px 18px;border-radius:0 12px 12px 0;color:var(--muted)}
+.callout b{color:#fff}
+.muted{color:var(--muted)}
+.reveal{will-change:opacity,transform}
+body.js-anim .reveal{opacity:0;transform:translateY(26px)}
+
+/* ---------- numbers / bars ---------- */
+.bars{margin-top:30px;display:flex;flex-direction:column;gap:16px}
+.bar{display:grid;grid-template-columns:minmax(150px,230px) 1fr;gap:16px;align-items:center}
+.bar__label{color:var(--muted);font-size:.9rem}
+.bar__label b{display:block;color:#fff;font-size:.96rem;font-weight:600}
+.bar__track{height:38px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;position:relative;overflow:hidden}
+.bar__fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:9px;display:flex;align-items:center;justify-content:flex-end;
+  padding-right:12px;font-variant-numeric:tabular-nums;font-weight:600;color:#241a06;font-size:.9rem}
+.bar__fill--muted{background:linear-gradient(90deg,#3a444f,#566374);color:#fff}
+.bar__fill--risk{background:linear-gradient(90deg,#b5613f,var(--risk));color:#fff}
+.bar__fill--gold{background:linear-gradient(90deg,var(--gold),var(--gold-soft))}
+.bar__fill--ok{background:linear-gradient(90deg,#4f9c70,var(--ok))}
+.bars__note{margin-top:18px;color:var(--muted-2);font-size:.84rem}
+
+/* ---------- timeline ---------- */
+.legend{display:flex;flex-wrap:wrap;gap:18px;margin:8px 0 30px}
+.legend span{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:.86rem}
+.flag{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700}
+.flag--ok{background:rgba(105,180,135,.18);color:var(--ok);border:1px solid rgba(105,180,135,.5)}
+.flag--mid{background:rgba(216,178,90,.16);color:var(--warn);border:1px solid rgba(216,178,90,.5)}
+.flag--risk{background:rgba(221,129,96,.16);color:var(--risk);border:1px solid rgba(221,129,96,.5)}
+.tl{position:relative;margin-left:8px;padding-left:30px}
+.tl::before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;
+  background:linear-gradient(var(--gold),rgba(216,173,92,.15))}
+.tl__item{position:relative;padding:0 0 26px 8px}
+.tl__dot{position:absolute;left:-30px;top:3px;width:18px;height:18px;border-radius:50%;background:var(--bg);
+  border:2px solid var(--gold);box-shadow:0 0 0 4px rgba(14,18,24,1)}
+.tl__date{font-family:var(--font-serif);color:var(--gold-soft);font-size:.95rem;letter-spacing:.01em}
+.tl__event{margin-top:3px;color:var(--text)}
+.tl__event .mini{margin-left:8px;vertical-align:middle}
+.tl--future .tl__dot{border-color:var(--accent);background:var(--accent)}
+
+/* ---------- entities ---------- */
+.entwrap{display:grid;grid-template-columns:1.1fr .9fr;gap:26px;align-items:center}
+.entgraph{position:relative;min-height:340px;border:1px solid var(--line);border-radius:var(--r-lg);
+  background:radial-gradient(120% 120% at 50% 0,rgba(127,168,201,.06),transparent 60%),var(--surface);overflow:hidden}
+.node{position:absolute;transform:translate(-50%,-50%);background:var(--surface-2);border:1px solid var(--line-strong);
+  border-radius:11px;padding:8px 11px;font-size:.76rem;line-height:1.25;text-align:center;min-width:88px}
+.node small{display:block;color:var(--muted-2);font-size:.68rem;font-variant-numeric:tabular-nums}
+.node--hub{background:linear-gradient(180deg,rgba(221,129,96,.22),rgba(221,129,96,.05));border-color:rgba(221,129,96,.55);color:#fff;z-index:3}
+.node--center{background:linear-gradient(180deg,rgba(216,173,92,.2),rgba(216,173,92,.04));border-color:rgba(216,173,92,.5)}
+.entlines{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+.entlines line{stroke:rgba(255,255,255,.14);stroke-width:1}
+.entlines line.sweep{stroke:rgba(221,129,96,.6);stroke-dasharray:4 4}
+
+/* ---------- progress ring ---------- */
+.ring{--p:0;width:54px;height:54px;flex:none;position:relative}
+.ring svg{transform:rotate(-90deg)}
+.ring__bg{stroke:rgba(255,255,255,.1)}
+.ring__fg{stroke:var(--gold);stroke-linecap:round;transition:stroke-dashoffset .6s var(--ease)}
+.ring__txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ---------- questionnaire ---------- */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+.tab{padding:10px 16px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--muted);
+  cursor:pointer;font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:10px}
+.tab.is-active{color:#fff;border-color:rgba(216,173,92,.5);background:linear-gradient(180deg,rgba(216,173,92,.14),transparent)}
+.tab .mini-ring{width:30px;height:30px}
+.panel{display:none}
+.panel.is-active{display:block;animation:fade .4s var(--ease)}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.panel__head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+.panel__head h3{font-size:1.35rem;color:#fff}
+.q{border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:10px;background:var(--surface);transition:border-color .25s}
+.q.is-done{border-color:rgba(105,180,135,.45);background:rgba(105,180,135,.05)}
+.q__top{display:flex;gap:13px;align-items:flex-start}
+.q__cb{appearance:none;-webkit-appearance:none;width:22px;height:22px;flex:none;margin-top:2px;border:1.5px solid var(--line-strong);
+  border-radius:7px;cursor:pointer;position:relative;background:var(--bg);transition:.2s}
+.q__cb:checked{background:var(--ok);border-color:var(--ok)}
+.q__cb:checked::after{content:"";position:absolute;left:7px;top:3px;width:5px;height:10px;border:solid #08130c;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.q__label{cursor:pointer;flex:1}
+.q__id{color:var(--gold);font-weight:600;margin-right:7px;font-size:.86rem}
+.q__note{margin-top:10px;width:100%;background:var(--bg);border:1px solid var(--line);border-radius:9px;color:var(--text);
+  padding:9px 11px;font-family:inherit;font-size:.9rem;resize:vertical;min-height:38px;display:none}
+.q.is-open .q__note{display:block}
+.q__toggle{margin-top:9px;background:none;border:none;color:var(--muted-2);font-size:.78rem;cursor:pointer;padding:0;letter-spacing:.04em}
+.q__toggle:hover{color:var(--gold)}
+
+/* ---------- actions ---------- */
+.phase{margin-bottom:26px}
+.phase__h{display:flex;align-items:baseline;gap:14px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.phase__h h3{font-size:1.25rem;color:#fff}
+.phase__when{color:var(--gold);font-size:.8rem;letter-spacing:.14em;text-transform:uppercase}
+.act{display:flex;gap:13px;align-items:flex-start;padding:11px 0;border-bottom:1px dashed var(--line)}
+.act:last-child{border-bottom:0}
+.act__cb{appearance:none;-webkit-appearance:none;width:22px;height:22px;flex:none;margin-top:1px;border:1.5px solid var(--line-strong);
+  border-radius:7px;cursor:pointer;position:relative;background:var(--bg);transition:.2s}
+.act__cb:checked{background:var(--gold);border-color:var(--gold)}
+.act__cb:checked::after{content:"";position:absolute;left:7px;top:3px;width:5px;height:10px;border:solid #241a06;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.act__body{flex:1}
+.act.is-done .act__body{opacity:.5;text-decoration:line-through}
+.owner{font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;font-weight:700;margin-left:8px;vertical-align:middle}
+.owner--kal{background:rgba(127,168,201,.18);color:#9cc1dd}
+.owner--stephen{background:rgba(216,173,92,.18);color:var(--gold-soft)}
+.owner--peter{background:rgba(105,180,135,.18);color:#8fd1ab}
+.owner--both{background:rgba(255,255,255,.1);color:#cfd8e3}
+.hold{margin-top:26px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.hold .card{border-color:rgba(216,173,92,.35)}
+
+/* ---------- footer ---------- */
+.foot{padding:48px clamp(18px,4vw,40px) 70px;border-top:1px solid var(--line);color:var(--muted-2);font-size:.84rem}
+.foot a{color:var(--muted)}
+
+.toTop{position:fixed;right:18px;bottom:18px;z-index:35;width:46px;height:46px;border-radius:50%;border:1px solid var(--line-strong);
+  background:var(--surface);color:var(--text);cursor:pointer;opacity:0;transform:translateY(12px);transition:.3s;font-size:1.1rem}
+.toTop.show{opacity:1;transform:none}
+
+/* ---------- responsive ---------- */
+@media (max-width:1023px){
+  :root{--rail:0px}
+  .menu-btn{display:inline-flex}
+  .sidenav{transform:translateX(-100%);transition:transform .34s var(--ease);width:280px}
+  body.nav-open .sidenav{transform:none}
+  main{margin-left:0}
+  .metric{grid-column:span 3}
+  .entwrap{grid-template-columns:1fr}
+  .cols-3{grid-template-columns:1fr}
+  .cols-2{grid-template-columns:1fr}
+}
+@media (max-width:600px){
+  .metrics{grid-template-columns:1fr 1fr}
+  .metric,.metric--wide{grid-column:span 1}
+  .bar{grid-template-columns:1fr;gap:7px}
+  .bar__track{height:32px}
+  .hold{grid-template-columns:1fr}
+  .hero h1{font-size:clamp(2.1rem,7vw,3rem)}
+}
+
+/* ---------- print ---------- */
+@media print{
+  #bg,.grain,.sidenav,.topbar,.toTop,.scroll-hint,.hero__halo,.menu-btn{display:none!important}
+  body{background:#fff;color:#111}
+  main{margin:0}
+  .section{padding:18px 0;break-inside:avoid}
+  .card,.q,.metric{border-color:#ccc;background:#fff;color:#111}
+  .panel{display:block!important}
+  .q__note{display:block!important}
+  a{color:#111}
+  .metric__v,.tl__date,.card__n,.eyebrow{color:#7a5a16}
+}
+</style>
+</head>
+<body class="no-js">
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="topbar">
+  <button class="menu-btn" id="menuBtn" aria-label="Open navigation" aria-expanded="false">☰</button>
+  <a class="brand" href="#overview"><span class="brand__mark" aria-hidden="true"></span>Braidenhill <small>Strategy Console</small></a>
+  <div class="topbar__spacer"></div>
+  <button class="btn btn--ghost" id="printBtn" type="button" style="padding:8px 14px;font-size:.84rem">Print / PDF</button>
+  <div class="scrollbar"><div class="scrollbar__fill" id="scrollFill"></div></div>
+</header>
+
+<nav class="sidenav" id="sidenav" aria-label="Sections">
+  <span class="sidenav__eyebrow">Sections</span>
+  <a class="navlink" href="#overview"><b>01</b> Overview</a>
+  <a class="navlink" href="#numbers"><b>02</b> The numbers</a>
+  <a class="navlink" href="#brief"><b>03</b> The brief</a>
+  <a class="navlink" href="#timeline"><b>04</b> Timeline</a>
+  <a class="navlink" href="#entities"><b>05</b> Corporate map</a>
+  <a class="navlink" href="#questions"><b>06</b> Questionnaire</a>
+  <a class="navlink" href="#actions"><b>07</b> Next actions</a>
+  <div class="sidenav__foot">v2 · 19 Jun 2026<br>Not legal advice.<br>Route external steps via Stephen.</div>
+</nav>
+<div class="scrim" id="scrim"></div>
+
+<main>
+
+  <!-- 01 OVERVIEW -->
+  <section class="section hero" id="overview">
+    <div class="hero__halo" aria-hidden="true"></div>
+    <div class="wrap">
+      <span class="eyebrow">01 — Overview</span>
+      <h1>
+        <span class="line"><span>The clearest path</span></span>
+        <span class="line"><span>to <em>&gt;£500k</em> — and the</span></span>
+        <span class="line"><span>quickest end.</span></span>
+      </h1>
+      <p class="hero__sub">A negotiated all-cash buyout at <b>£750k–£810k gross (≈£700k net)</b>, clean break with vacant possession of the whole estate passing to Dale — reached through a deadline-driven without-prejudice offer and a one-day mediation, with an <b>action of division and sale</b> as the openly-stated fallback.</p>
+      <div class="hero__cta">
+        <a class="btn btn--primary" href="#numbers">See the numbers</a>
+        <a class="btn btn--ghost" href="#actions">What happens this week</a>
+      </div>
+
+      <div class="metrics">
+        <div class="metric metric--risk reveal"><div class="metric__v"><span class="u">£</span><span data-count="500">0</span><span class="u">k</span></div><div class="metric__k">Dale's offer on the table — refused</div></div>
+        <div class="metric reveal"><div class="metric__v"><span class="u">£</span><span data-count="620">0</span><span class="u">k</span></div><div class="metric__k">Peter's half on Dale's <em>own</em> Galbraith paperwork</div></div>
+        <div class="metric metric--gold reveal"><div class="metric__v"><span class="u">£</span><span data-count="700">0</span><span class="u">k</span></div><div class="metric__k">Net floor — already includes Peter rehousing</div></div>
+        <div class="metric reveal"><div class="metric__v">~<span class="u">£</span><span data-count="900">0</span><span class="u">k</span></div><div class="metric__k">Target / reservation</div></div>
+        <div class="metric metric--wide reveal"><div class="metric__v">15·11·<span data-count="2035" data-plain="1">0</span></div><div class="metric__k">Turbine + infrastructure revert to the owners (Peter's 50%) — confirmed from the executed lease</div></div>
+        <div class="metric metric--wide reveal"><div class="metric__v"><span data-count="7">0</span> companies</div><div class="metric__k">Dale's corporate footprint, incl. the 27·02·2025 NRG 2025 sweep</div></div>
+      </div>
+    </div>
+    <div class="scroll-hint" aria-hidden="true"><span class="dot"></span>Scroll</div>
+  </section>
+
+  <!-- 02 NUMBERS -->
+  <section class="section" id="numbers">
+    <div class="wrap">
+      <span class="eyebrow">02 — The numbers</span>
+      <h2>£500k is already below Dale's own paperwork.</h2>
+      <p class="lede">Net equity in the farm is about <strong>£1.24m</strong> (Galbraith £1,440,000 less ~£200k debt). Halved, Peter's share on Dale's own December-2023 valuation is <strong>£620,000</strong> — before any 2023→2026 uplift, the completed new build, or the turbine reversion. The standing offer is the shortest bar on the board.</p>
+
+      <div class="bars" id="bars" aria-hidden="true">
+        <div class="bar"><div class="bar__label">Dale's offer (refused)<b>£500,000</b></div><div class="bar__track"><div class="bar__fill bar__fill--risk" data-w="55.6">£500k</div></div></div>
+        <div class="bar"><div class="bar__label">Peter's half — Dale's own valuation<b>£620,000</b></div><div class="bar__track"><div class="bar__fill bar__fill--muted" data-w="68.9">£620k</div></div></div>
+        <div class="bar"><div class="bar__label">Peter's net floor<b>£700,000</b></div><div class="bar__track"><div class="bar__fill bar__fill--gold" data-w="77.8">£700k</div></div></div>
+        <div class="bar"><div class="bar__label">Land-only entitlement (low)<b>£780,000</b></div><div class="bar__track"><div class="bar__fill bar__fill--ok" data-w="86.7">£780k</div></div></div>
+        <div class="bar"><div class="bar__label">Target / reservation<b>£900,000</b></div><div class="bar__track"><div class="bar__fill bar__fill--ok" data-w="100">£900k</div></div></div>
+      </div>
+      <p class="bars__note">Bars scaled to the £900k reservation. The £500k offer is <strong>~56–64%</strong> of the £780k–£900k land-only band — and the 15/11/2035 turbine reversion and withheld rent sit on top of that. <span class="muted">[Land band is a Speculation range, D47; primary valuation pending Savills.]</span></p>
+
+      <div class="grid cols-3" style="margin-top:30px">
+        <div class="card reveal"><span class="card__n">Affordability</span><p>Dale's £500k offer itself <strong>proves he can fund at least £500k</strong>. The dispute is only about the last £200k–£400k.</p></div>
+        <div class="card reveal"><span class="card__n">Gross vs net</span><p>The ask is <strong>£750k–£810k gross ≈ £700k net</strong>. Never discuss a figure unlabelled — the <strong>CGT base cost</strong> (Alistair) converts between them.</p></div>
+        <div class="card reveal"><span class="card__n">The gap</span><p>Accepting near £500k would land <strong>~£120k below</strong> Dale's own 2023 paperwork (£620k). That is the floor we refuse to cross.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 BRIEF -->
+  <section class="section" id="brief">
+    <div class="wrap">
+      <span class="eyebrow">03 — The brief</span>
+      <h2>The legal spine, and why Dale closes.</h2>
+      <p class="lede">Three points carry the negotiation. All verified against secondary sources on 19/06/2026; <strong>Stephen/Counsel confirm on Westlaw before pleading.</strong></p>
+
+      <div class="grid cols-3" style="margin-top:28px">
+        <div class="card reveal"><span class="card__n">Pillar I</span><h3>Force the sale</h3><p>A co-owner has an <strong>absolute right to division and sale</strong> of the whole farm — no equitable defence. <span class="muted">Upper Crathes Fishings v Bailey's Exrs 1991 SLT 747.</span></p><p class="muted" style="font-size:.86rem">Nuance: the court chooses the <em>mode</em> (division or sale); for an integrated farm, sale is the realistic outcome.</p></div>
+        <div class="card reveal"><span class="card__n">Pillar II</span><h3>No forced buyout</h3><p>A court <strong>cannot</strong> order Dale to buy Peter out (or vice-versa). The buyout happens <strong>by agreement, under the pressure of the sale.</strong> <span class="muted">Collins v Sweeney [2013] ScotSC 20 (appeal refused 13/03/2014).</span></p></div>
+        <div class="card reveal"><span class="card__n">Pillar III</span><h3>Make delay expensive</h3><p>A formal <strong>pursuer's offer</strong> Dale fails to beat exposes him to a <strong>50% uplift</strong> on Peter's post-offer expenses. <span class="muted">SSI 2017/52. Not automatic (granted on cause shown); excludes outlays.</span></p></div>
+      </div>
+
+      <div class="grid cols-2" style="margin-top:18px">
+        <div class="card reveal">
+          <h3>Why Dale closes above £500k</h3>
+          <p>He is already at £500k. The marginal £200k–£300k buys him certainty of <strong>keeping the farm</strong> (vs open-market roulette), sole ownership of the <strong>turbine reversion</strong> and re-powering rights, <strong>vacant possession of the whole estate including Failte House</strong>, no forensic accounting of company-routed income, no challenge to the corporate sweep, ~£100k+ of avoided costs, and timing/tax control. That trade is cheaper than the fight.</p>
+        </div>
+        <div class="card reveal">
+          <h3>Guardrails</h3>
+          <p style="margin-bottom:.6em"><span class="tag tag--gold">Floor £700k net</span> <span class="tag">label every figure gross/net</span> <span class="tag">funds before vacating</span> <span class="tag">no direct contact with Dale</span></p>
+          <p>On the corporate sweep: <strong>IA 1986 s.242</strong> only bites in an insolvency — <strong>s.423</strong> (transactions defrauding creditors) is likely the better-fit vehicle; extent is for Counsel. PDC Plant &amp; Overton Wind are flagged technically insolvent and the lease irritates on tenant insolvency (clause FOURTEENTH) — <strong>monitor, don't engineer.</strong></p>
+        </div>
+      </div>
+
+      <div class="callout reveal" style="margin-top:18px"><strong>Changed since v1 (10/06):</strong> turbine reversion confirmed <b>15/11/2035</b> (was ambiguously "2032" in legacy notes); offer corrected to <b>~56–64%</b> of the band (was "60–70%"); s.242 re-framed toward <b>s.423</b>; Companies House facts marked time-sensitive.</div>
+    </div>
+  </section>
+
+  <!-- 04 TIMELINE -->
+  <section class="section" id="timeline">
+    <div class="wrap">
+      <span class="eyebrow">04 — Timeline</span>
+      <h2>Twenty-eight years, one through-line.</h2>
+      <div class="legend">
+        <span><i class="flag flag--ok">✓</i> Documented</span>
+        <span><i class="flag flag--mid">◑</i> Recorded — confirm</span>
+        <span><i class="flag flag--risk">!</i> Pin the date</span>
+      </div>
+      <div class="tl" id="tl">
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">2007</div><div class="tl__event">Father dies; Peter &amp; Dale inherit the farm and houses at Waddell Avenue and Laggan Road, equally. <i class="flag flag--mid mini">◑</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">15 Nov 2007</div><div class="tl__event">Wind-turbine lease <strong>LAN197965</strong> commences — original 25-year term; Peter &amp; Dale joint landlords. <i class="flag flag--ok mini">✓</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">~2009</div><div class="tl__event">Joint loan funds the turbine (Enercon E-48, 800 kW). PDC Plant Ltd incorporated 01/06/2009 (Dale sole director). <i class="flag flag--ok mini">✓</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">2014–2016</div><div class="tl__event">Peter recorded in PDC Plant returns holding <strong>200 of 500 shares</strong>; registrable PSC from 06/04/2016. <i class="flag flag--ok mini">✓</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">23 Jun 2022</div><div class="tl__event"><strong>Peter removed as a director of Braidenhill Farm Wind Ltd</strong> (SC313706). <i class="flag flag--ok mini">✓</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">20 Jan 2023</div><div class="tl__event">Dale's daughters appointed to the BFW board; Galbraith valuation commissioned the same month. <i class="flag flag--ok mini">✓</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">Dec 2023</div><div class="tl__event"><strong>Galbraith valuation: £1,440,000</strong> — turbine area excluded; new build counted as a £250k shell. <i class="flag flag--mid mini">◑</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">~2024</div><div class="tl__event">Dale's first settlement offer — about <strong>£35,000</strong>. Refused. <i class="flag flag--risk mini">!</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">27 Feb 2025</div><div class="tl__event"><strong>NRG 2025 Ltd incorporated and a five-entity sweep</strong> brings BFW, NBW Farm, Overton Wind, Lockshaw &amp; PDC Plant under it — including cessation of Peter's PSC in PDC Plant. <i class="flag flag--ok mini">✓</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">later · date ?</div><div class="tl__event">Dale's second offer — about <strong>£500,000</strong>. Refused. <i class="flag flag--risk mini">!</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">12 Dec 2025</div><div class="tl__event">Dale's letter seeking estate-income detail — the trigger for the current thread. <i class="flag flag--mid mini">◑</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">26 Mar 2026</div><div class="tl__event">Peter's reply: holiday-let figures; challenges the "turbine belongs to the company" line via the lease; raises the Minute of Variation; notes the DNO incident. <i class="flag flag--ok mini">✓</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">1 May 2026</div><div class="tl__event">Dale's "Updated Accounting Letter": reframes as a full accounting <strong>since May 2021</strong>. <i class="flag flag--ok mini">✓</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">31 May 2026</div><div class="tl__event">Full lease obtained &amp; transcribed — <strong>reversion confirmed 15 Nov 2035</strong> (term varied 25→28 years). <i class="flag flag--ok mini">✓</i></div></div>
+        <div class="tl__item reveal"><span class="tl__dot"></span><div class="tl__date">10–19 Jun 2026</div><div class="tl__event">Path-to-£500k brief; validated; v2, timeline, questionnaire &amp; next-actions prepared. <i class="flag flag--ok mini">✓</i></div></div>
+        <div class="tl__item tl--future reveal"><span class="tl__dot"></span><div class="tl__date">15 Nov 2035</div><div class="tl__event"><strong>Lease expires. Turbine + infrastructure revert to the owners</strong> (Peter's 50%), at the landlords' option to retain or require removal. Independent of the company claims. <i class="flag flag--ok mini">✓</i></div></div>
+      </div>
+      <p class="bars__note"><strong>"May 2021"</strong> — Dale's chosen accounting start-point — is not yet explained (see questionnaire A9). Legacy files still showing a <strong>2032</strong> reversion are stale: the executed lease puts it at 15/11/2035.</p>
+    </div>
+  </section>
+
+  <!-- 05 ENTITIES -->
+  <section class="section" id="entities">
+    <div class="wrap">
+      <span class="eyebrow">05 — Corporate map</span>
+      <h2>The 27·02·2025 sweep.</h2>
+      <div class="entwrap">
+        <div class="entgraph" id="entgraph" aria-hidden="true">
+          <svg class="entlines" id="entlines" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+          <div class="node node--hub" style="left:50%;top:50%">NRG 2025<small>SC839350</small></div>
+          <div class="node" style="left:50%;top:13%">BFW (Wind)<small>SC313706</small></div>
+          <div class="node" style="left:85%;top:33%">NBW Farm<small>SC428497</small></div>
+          <div class="node" style="left:85%;top:70%">Overton Wind<small>SC557304</small></div>
+          <div class="node" style="left:50%;top:88%">Lockshaw<small>SC537688</small></div>
+          <div class="node" style="left:15%;top:70%">PDC Plant<small>SC360495</small></div>
+          <div class="node node--center" style="left:15%;top:33%">Dunbar's Daisies<small>SC787534</small></div>
+        </div>
+        <div>
+          <p>On <strong>27 February 2025</strong>, the day it was incorporated, <strong>NRG 2025 Ltd</strong> took 75%+ control across five trading entities — and Peter's PSC status in PDC Plant was ceased the same day. Galbraith never counted the turbine; the sweep concentrated control just after Peter sought valuation access.</p>
+          <p class="muted">As at 10/06/2026, NRG 2025 was still a <strong>£20 dormant shell</strong> with no charges or asset transfers visible — so the asset-shielding fear has <em>not</em> materialised in filings. <strong>Re-pull all seven entities today</strong> (BFW's confirmation statement was overdue; PDC Plant's was due 15/06) before any forensic narrative relies on it.</p>
+          <p><span class="tag">7 entities</span> <span class="tag">~£3.21m inter-co loans</span> <span class="tag">~£4.25m bank borrowing</span> <span class="tag tag--gold">PDC Plant &amp; Overton flagged insolvent</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 QUESTIONNAIRE -->
+  <section class="section" id="questions">
+    <div class="wrap">
+      <span class="eyebrow">06 — Questionnaire</span>
+      <h2>What we need from you, to close the gaps.</h2>
+      <p class="lede">Tick as you go — progress saves in this browser. "Don't know" is a valid answer; record it. The Minute-of-Variation recollection has its own form — don't duplicate it here.</p>
+
+      <div class="tabs" id="qTabs">
+        <button class="tab is-active" data-panel="peter">Peter <span class="mini-ring" data-ring="peter"></span></button>
+        <button class="tab" data-panel="fiona">Fiona <span class="mini-ring" data-ring="fiona"></span></button>
+        <button class="tab" data-panel="kal">Kal <span class="mini-ring" data-ring="kal"></span></button>
+      </div>
+
+      <div class="panel is-active" id="panel-peter" data-group="peter"></div>
+      <div class="panel" id="panel-fiona" data-group="fiona"></div>
+      <div class="panel" id="panel-kal" data-group="kal"></div>
+    </div>
+  </section>
+
+  <!-- 07 ACTIONS -->
+  <section class="section" id="actions">
+    <div class="wrap">
+      <span class="eyebrow">07 — Next actions</span>
+      <h2>The headline: get two emails out this week.</h2>
+      <div class="panel__head"><p class="lede" style="margin:0">Owner-assigned and sequenced. Everything external routes through Stephen; no direct contact with Dale.</p><div class="ring" id="actRing" data-ring-big aria-label="Actions complete"></div></div>
+      <div id="actList" style="margin-top:24px"></div>
+
+      <div class="hold">
+        <div class="card"><span class="card__n">Hold the line</span><p><strong>Floor £700k net</strong> (already includes Peter rehousing). <strong>Target ~£900k.</strong></p></div>
+        <div class="card"><span class="card__n">The gating number</span><p>Never discuss a figure without labelling it <strong>gross or net</strong> — the CGT base cost from Alistair converts between them.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="wrap">
+      <p><strong>Braidenhill Farm — Strategy Console.</strong> Prepared 19 June 2026 for Kal; for Stephen Nicolson's review before any external step. <strong>This is not legal advice</strong> — authorities are corroborated from secondary sources and require primary confirmation by Stephen/Counsel before anything is pleaded.</p>
+      <p>Source documents in this project: the v2 brief, the clean timeline, the intake questionnaire and the next-actions checklist. Companies House facts are time-sensitive (data as at 10/06/2026). Wellbeing rule governs throughout — safety first; never engineer confrontation.</p>
+      <p style="margin-top:14px"><button class="btn btn--ghost" id="resetBtn" type="button" style="padding:8px 14px;font-size:.82rem">Reset my ticks on this device</button></p>
+    </div>
+  </footer>
+</main>
+
+<button class="toTop" id="toTop" aria-label="Back to top">↑</button>
+
+<!-- ===== libraries (CDN; progressive enhancement) ===== -->
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+/* ====== data: questionnaire + actions ====== */
+var QDATA = {
+  peter: [
+    ["A1","Goal — in one sentence, what outcome does Peter actually want?"],
+    ["A2","Bottom line — what would he accept tomorrow? What would he refuse under any terms?"],
+    ["A3","Pace — any date this must conclude by (health, retirement, family event)?"],
+    ["A4","Failte House — confirm he will leave and buy elsewhere; any constraint on where/when?"],
+    ["A5","The ~£35,000 offer (~2024) — written or verbal? date? terms? where is the paper?"],
+    ["A6","The ~£500,000 offer — written or verbal? date? terms? how was it refused?"],
+    ["A7","New build — who asked Peter to contribute, when, how much (confirm £40k), how did he refuse?"],
+    ["A8","Contributions — any money, labour, materials or land use since ~2007? Rough amounts/dates."],
+    ["A9","“May 2021” — what happened around then, on Peter's account? One sentence."],
+    ["A10","Farming — when/why did Peter stop active operation? Anything ever written down?"],
+    ["A11","Electricity — full story of the separate supply and the DNO being told to leave (dates, paper)."],
+    ["A12","Confidence — for A5/A6/A9, how sure (low/med/high) and what would raise it?"]
+  ],
+  fiona: [
+    ["B1","Glamping pod — start date, owner, run as Fiona's own business?"],
+    ["B2","Money trail — separate bank account? separate booking account? ever mixed with farm money?"],
+    ["B3","Utilities — how is the pod metered/supplied? separate from the farm or shared?"],
+    ["B4","Permissions — planning, site licence or insurance in Fiona's name? dates?"],
+    ["B5","Funding — was any partnership/farm money used to set up the pod? what and when?"],
+    ["B6","Caravans & shepherd's hut — who runs them day-to-day? separate accounts/listings?"],
+    ["B7","Records — can Fiona pull booking/income summaries by year?"]
+  ],
+  kal: [
+    ["C1","Galbraith report (Dec 2023) — full PDF with appendices → Valuations."],
+    ["C2","Torridon cost plan for the new build (~£878,700)."],
+    ["C3","Settlement-offer correspondence — the £35k and £500k offers and refusals."],
+    ["C4","Dale's 12/12/2025 letter and the earlier “Clarification Letter”."],
+    ["C5","The “valuation-access” email Peter sent ~Feb 2025."],
+    ["C6","2015 solicitor letter confirming Peter's shareholdings."],
+    ["C7","Correspondence log — one chronological list (date, sender, subject)."],
+    ["C8","Alistair — CGT base cost (the gating number); send Email B."],
+    ["C9","Stephen — Land Register title check: one title or separate sheets? securities? the MoV?"],
+    ["C10","Savills — restart the valuation; widen to turbine area + completed new build."],
+    ["C11","Companies House — re-pull all seven entities as at today."],
+    ["C12","Family/estate narrative — Kal's written timeline with any precise dates."]
+  ]
+};
+var ADATA = [
+  ["This week","Wk 0-2",[
+    ["kal","Send <b>Email A → Stephen</b>: corrected spine, 15/11/2035 reversion + MoV, prescription questions, hybrid SFA + ATE ask. Attach brief v2."],
+    ["kal","Send <b>Email B → Alistair</b>: Peter's CGT base cost + cost-vs-income reckoning."],
+    ["kal","Circulate the intake questionnaire to Peter & Fiona."],
+    ["kal","Re-pull Companies House for all seven entities as at today."],
+    ["stephen","Expedite the Land Register title check (one title vs separate sheets; securities/inhibitions; MoV registration & Peter's signature)."],
+    ["stephen","Confirm the corporate-sweep vehicle: s.242 vs s.423 vs common-law; and the s.994 standing point."],
+    ["stephen","Confirm the authorities on Westlaw before pleading."],
+    ["peter","Complete the intake questionnaire (and the outstanding Minute-of-Variation form)."]
+  ]],
+  ["The offer","Wk 2-5",[
+    ["stephen","Send a without-prejudice offer: £750k-£810k gross + mutual release + agreed completion/vacate timetable; mediation within 8 weeks."],
+    ["stephen","On refusal: ready to raise division-and-sale + accounting and lodge a formal pursuer's offer."],
+    ["kal","Restart the Savills valuation (funding permitting); widen the brief."]
+  ]],
+  ["Mediation","Wk 6-12",[
+    ["both","One-day commercial mediation. Target: Dale buys Peter's heritable half with vacant possession (Failte included) + Peter's 50% of the 2035 reversion."],
+    ["both","If refused → raise the action immediately (Sheriff Court ordinary cause)."]
+  ]],
+  ["Housekeeping","Ongoing",[
+    ["kal","Reconcile stale “2032” references to 15/11/2035 across the file set."],
+    ["kal","Correct “60-70%” → “~56-64%” wherever carried over from v1."]
+  ]]
+];
+
+(function(){
+  document.body.classList.remove('no-js');
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduced) document.body.classList.add('reduced');
+  var store = {
+    get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},
+    set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},
+    del:function(k){try{localStorage.removeItem(k)}catch(e){}}
+  };
+  var PREFIX='bf_console_v2_';
+
+  /* ---- build questionnaire ---- */
+  function ring(size){
+    var r = (size/2)-4, c = 2*Math.PI*r;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">'+
+      '<circle class="ring__bg" cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke-width="3"/>'+
+      '<circle class="ring__fg" cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke-width="3" '+
+      'stroke-dasharray="'+c+'" stroke-dashoffset="'+c+'"/></svg>';
+  }
+  Object.keys(QDATA).forEach(function(group){
+    var panel = document.getElementById('panel-'+group);
+    if(!panel) return;
+    var html = '';
+    QDATA[group].forEach(function(item){
+      var id = item[0];
+      html += '<div class="q" data-q="'+group+'-'+id+'">'+
+        '<div class="q__top">'+
+          '<input type="checkbox" class="q__cb" id="cb-'+group+'-'+id+'" aria-label="Mark '+id+' done">'+
+          '<label class="q__label" for="cb-'+group+'-'+id+'"><span class="q__id">'+id+'</span>'+item[1]+'</label>'+
+        '</div>'+
+        '<button class="q__toggle" type="button">+ add a note</button>'+
+        '<textarea class="q__note" placeholder="Answer or notes…"></textarea>'+
+      '</div>';
+    });
+    panel.innerHTML = html;
+  });
+
+  /* ---- build actions ---- */
+  var actList = document.getElementById('actList');
+  if(actList){
+    var ah='', ai=0;
+    ADATA.forEach(function(ph){
+      ah += '<div class="phase"><div class="phase__h"><h3>'+ph[0]+'</h3><span class="phase__when">'+ph[1]+'</span></div>';
+      ph[2].forEach(function(a){
+        var id='act-'+ai++;
+        ah += '<div class="act" data-q="'+id+'">'+
+          '<input type="checkbox" class="act__cb" id="'+id+'" aria-label="Mark action done">'+
+          '<div class="act__body"><span class="owner owner--'+a[0]+'">'+a[0]+'</span> '+a[1]+'</div></div>';
+      });
+      ah += '</div>';
+    });
+    actList.innerHTML = ah;
+  }
+
+  /* ---- persistence + progress ---- */
+  function setRing(el,frac){
+    if(!el) return;
+    var circle = el.querySelector('.ring__fg'); if(!circle) return;
+    var r = circle.getAttribute('r'); var c = 2*Math.PI*r;
+    circle.style.strokeDasharray = c;
+    circle.style.strokeDashoffset = c*(1-frac);
+    var txt = el.querySelector('.ring__txt'); if(txt) txt.textContent = Math.round(frac*100)+'%';
+  }
+  // inject mini-rings + big ring markup
+  document.querySelectorAll('.mini-ring').forEach(function(el){ el.innerHTML = ring(30); });
+  var actRingEl = document.getElementById('actRing');
+  if(actRingEl){ actRingEl.innerHTML = ring(54) + '<span class="ring__txt">0%</span>'; }
+
+  function refreshGroup(group){
+    var boxes = document.querySelectorAll('#panel-'+group+' .q__cb');
+    var done=0; boxes.forEach(function(b){ if(b.checked) done++; });
+    var frac = boxes.length? done/boxes.length : 0;
+    var tab = document.querySelector('.tab[data-panel="'+group+'"] .mini-ring');
+    setRing(tab, frac);
+  }
+  function refreshActions(){
+    var boxes = document.querySelectorAll('.act__cb');
+    var done=0; boxes.forEach(function(b){ if(b.checked) done++; });
+    setRing(actRingEl, boxes.length? done/boxes.length:0);
+  }
+
+  function bindCheckbox(box, key, onChange){
+    var saved = store.get(PREFIX+key);
+    if(saved==='1'){ box.checked = true; }
+    var row = box.closest('.q')||box.closest('.act');
+    function sync(){ if(row) row.classList.toggle('is-done', box.checked); }
+    sync(); onChange();
+    box.addEventListener('change', function(){
+      store.set(PREFIX+key, box.checked?'1':'0'); sync(); onChange();
+    });
+  }
+  document.querySelectorAll('.q__cb').forEach(function(box){
+    var key = box.id.replace('cb-','q-');
+    bindCheckbox(box, key, function(){ refreshGroup(box.id.split('-')[1]); });
+  });
+  document.querySelectorAll('.act__cb').forEach(function(box){
+    bindCheckbox(box, box.id, refreshActions);
+  });
+  // notes persistence + toggle
+  document.querySelectorAll('.q').forEach(function(q){
+    var key = PREFIX+'note-'+q.getAttribute('data-q');
+    var ta = q.querySelector('.q__note'); var tg = q.querySelector('.q__toggle');
+    var sv = store.get(key);
+    if(sv){ ta.value = sv; q.classList.add('is-open'); tg.textContent='- hide note'; }
+    tg.addEventListener('click', function(){
+      q.classList.toggle('is-open');
+      tg.textContent = q.classList.contains('is-open')?'- hide note':'+ add a note';
+      if(q.classList.contains('is-open')) ta.focus();
+    });
+    ta.addEventListener('input', function(){ store.set(key, ta.value); });
+  });
+
+  /* ---- tabs ---- */
+  document.querySelectorAll('.tab').forEach(function(tab){
+    tab.addEventListener('click', function(){
+      document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('is-active')});
+      document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('is-active')});
+      tab.classList.add('is-active');
+      var p = document.getElementById('panel-'+tab.getAttribute('data-panel'));
+      if(p) p.classList.add('is-active');
+    });
+  });
+
+  /* ---- nav: drawer + active state + scroll progress ---- */
+  var body=document.body, menuBtn=document.getElementById('menuBtn'),
+      scrim=document.getElementById('scrim'), fill=document.getElementById('scrollFill'),
+      toTop=document.getElementById('toTop');
+  function closeNav(){ body.classList.remove('nav-open'); if(menuBtn) menuBtn.setAttribute('aria-expanded','false'); }
+  if(menuBtn) menuBtn.addEventListener('click', function(){
+    body.classList.toggle('nav-open');
+    menuBtn.setAttribute('aria-expanded', body.classList.contains('nav-open')?'true':'false');
+  });
+  if(scrim) scrim.addEventListener('click', closeNav);
+  document.querySelectorAll('.navlink, .brand').forEach(function(a){ a.addEventListener('click', closeNav); });
+
+  var sections = [].slice.call(document.querySelectorAll('main section[id]'));
+  var navlinks = [].slice.call(document.querySelectorAll('.navlink'));
+  if('IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){
+          var id=e.target.id;
+          navlinks.forEach(function(l){ l.classList.toggle('is-active', l.getAttribute('href')==='#'+id); });
+        }
+      });
+    },{rootMargin:'-45% 0px -50% 0px'});
+    sections.forEach(function(s){ io.observe(s); });
+  }
+  function onScroll(){
+    var h = document.documentElement;
+    var p = h.scrollTop/(h.scrollHeight-h.clientHeight||1);
+    if(fill) fill.style.width = (p*100)+'%';
+    if(toTop) toTop.classList.toggle('show', h.scrollTop>700);
+  }
+  window.addEventListener('scroll', onScroll, {passive:true}); onScroll();
+  if(toTop) toTop.addEventListener('click', function(){ window.scrollTo({top:0,behavior: reduced?'auto':'smooth'}); });
+
+  /* ---- buttons ---- */
+  var pb=document.getElementById('printBtn'); if(pb) pb.addEventListener('click', function(){ window.print(); });
+  var rb=document.getElementById('resetBtn'); if(rb) rb.addEventListener('click', function(){
+    if(!confirm('Clear all ticks and notes saved in this browser?')) return;
+    try{ Object.keys(localStorage).forEach(function(k){ if(k.indexOf(PREFIX)===0) localStorage.removeItem(k); }); }catch(e){}
+    location.reload();
+  });
+
+  /* ---- counters (anime.js or fallback) ---- */
+  function runCounters(){
+    document.querySelectorAll('[data-count]').forEach(function(el){
+      var target = parseFloat(el.getAttribute('data-count'));
+      var plain = el.getAttribute('data-plain')==='1';
+      if(reduced || typeof anime==='undefined'){ el.textContent = plain? target : target.toLocaleString('en-GB'); return; }
+      var obj={v:0};
+      anime({targets:obj, v:target, duration:1500, easing:'easeOutExpo',
+        update:function(){ el.textContent = plain? Math.round(obj.v) : Math.round(obj.v).toLocaleString('en-GB'); }});
+    });
+  }
+
+  /* ---- bars ---- */
+  function runBars(){
+    document.querySelectorAll('#bars .bar__fill').forEach(function(el){
+      var w = el.getAttribute('data-w')+'%';
+      if(reduced || typeof anime==='undefined'){ el.style.width=w; return; }
+      anime({targets:el, width:w, duration:1300, easing:'easeOutQuart', delay:anime.stagger? anime.stagger(120):0});
+    });
+  }
+
+  /* ---- entity connector lines ---- */
+  function drawEntLines(){
+    var svg=document.getElementById('entlines'); var graph=document.getElementById('entgraph');
+    if(!svg||!graph) return;
+    var hub=graph.querySelector('.node--hub'); var nodes=graph.querySelectorAll('.node:not(.node--hub)');
+    var gr=graph.getBoundingClientRect();
+    function center(n){var r=n.getBoundingClientRect();return {x:(r.left+r.width/2-gr.left)/gr.width*100, y:(r.top+r.height/2-gr.top)/gr.height*100};}
+    var hc=center(hub); var out='';
+    nodes.forEach(function(n,i){
+      var c=center(n);
+      var sweep = i<5 ? ' sweep' : '';
+      out+='<line class="ent'+(sweep?' sweep':'')+'" x1="'+hc.x+'" y1="'+hc.y+'" x2="'+c.x+'" y2="'+c.y+'"/>';
+    });
+    svg.innerHTML=out;
+  }
+
+  /* ---- GSAP reveals + ambient ---- */
+  function initGSAP(){
+    // Content is visible by default. We only hide-then-reveal when GSAP is
+    // confirmed AND motion is allowed — so a CDN failure never blanks a section.
+    if(typeof gsap==='undefined' || reduced){ runCounters(); runBars(); return; }
+    document.body.classList.add('js-anim');
+    if(window.ScrollTrigger) gsap.registerPlugin(ScrollTrigger);
+
+    gsap.from('.hero h1 .line > span',{yPercent:115,opacity:0,duration:1.1,stagger:.12,ease:'power3.out',delay:.15});
+    gsap.from('.hero__sub,.hero__cta',{y:24,opacity:0,duration:.9,stagger:.12,delay:.7,ease:'power2.out'});
+
+    if(window.ScrollTrigger){
+      gsap.utils.toArray('.reveal').forEach(function(el){
+        gsap.to(el,{opacity:1,y:0,duration:.85,ease:'power2.out',scrollTrigger:{trigger:el,start:'top 88%'}});
+      });
+      ScrollTrigger.create({trigger:'#numbers',start:'top 72%',once:true,onEnter:runBars});
+      ScrollTrigger.create({trigger:'#overview',start:'top top',once:true,onEnter:runCounters});
+      try{ gsap.to(':root',{'--glow':.5,duration:3.2,repeat:-1,yoyo:true,ease:'sine.inOut'}); }catch(e){}
+    } else {
+      document.querySelectorAll('.reveal').forEach(function(e){e.style.opacity=1;e.style.transform='none';});
+      runBars(); runCounters();
+    }
+  }
+
+  /* ---- three.js ambient network ---- */
+  function initThree(){
+    var canvas=document.getElementById('bg');
+    if(!canvas || typeof THREE==='undefined'){ if(canvas) canvas.style.display='none'; return; }
+    var renderer;
+    try{ renderer=new THREE.WebGLRenderer({canvas:canvas,alpha:true,antialias:true}); }
+    catch(e){ canvas.style.display='none'; return; }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.8));
+    var scene=new THREE.Scene();
+    var camera=new THREE.PerspectiveCamera(60,window.innerWidth/window.innerHeight,1,1000);
+    camera.position.z=320;
+    var N = window.innerWidth<700?60:110;
+    var positions=new Float32Array(N*3), vel=[];
+    var spread=460;
+    for(var i=0;i<N;i++){
+      positions[i*3]=(Math.random()-.5)*spread;
+      positions[i*3+1]=(Math.random()-.5)*spread*0.7;
+      positions[i*3+2]=(Math.random()-.5)*spread;
+      vel.push({x:(Math.random()-.5)*.18,y:(Math.random()-.5)*.18,z:(Math.random()-.5)*.18});
+    }
+    var pg=new THREE.BufferGeometry();
+    pg.setAttribute('position',new THREE.BufferAttribute(positions,3));
+    var pm=new THREE.PointsMaterial({color:0xd8ad5c,size:2.4,transparent:true,opacity:.85});
+    var points=new THREE.Points(pg,pm); scene.add(points);
+    var lgeo=new THREE.BufferGeometry();
+    var lpos=new Float32Array(N*N*3);
+    var lmat=new THREE.LineBasicMaterial({color:0x8fb0cc,transparent:true,opacity:.16});
+    var lines=new THREE.LineSegments(lgeo,lmat); scene.add(lines);
+
+    var mouse={x:0,y:0};
+    window.addEventListener('mousemove',function(e){ mouse.x=(e.clientX/window.innerWidth-.5); mouse.y=(e.clientY/window.innerHeight-.5); },{passive:true});
+
+    function resize(){ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight,false); }
+    window.addEventListener('resize',resize); resize();
+
+    var running=true;
+    document.addEventListener('visibilitychange',function(){ running=!document.hidden; if(running) loop(); });
+
+    function step(){
+      var p=pg.attributes.position.array; var li=0; var maxD=92;
+      for(var i=0;i<N;i++){
+        p[i*3]+=vel[i].x; p[i*3+1]+=vel[i].y; p[i*3+2]+=vel[i].z;
+        for(var a=0;a<3;a++){ if(p[i*3+a]>spread/2||p[i*3+a]<-spread/2) vel[i][['x','y','z'][a]]*=-1; }
+      }
+      for(var j=0;j<N;j++){ for(var k=j+1;k<N;k++){
+        var dx=p[j*3]-p[k*3],dy=p[j*3+1]-p[k*3+1],dz=p[j*3+2]-p[k*3+2];
+        var d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+        if(d<maxD && li<lpos.length-6){
+          lpos[li++]=p[j*3];lpos[li++]=p[j*3+1];lpos[li++]=p[j*3+2];
+          lpos[li++]=p[k*3];lpos[li++]=p[k*3+1];lpos[li++]=p[k*3+2];
+        }
+      }}
+      lgeo.setAttribute('position',new THREE.BufferAttribute(lpos.slice(0,li),3));
+      pg.attributes.position.needsUpdate=true;
+      points.rotation.y+=0.0006; lines.rotation.y+=0.0006;
+      camera.position.x += (mouse.x*60-camera.position.x)*0.03;
+      camera.position.y += (-mouse.y*40-camera.position.y)*0.03;
+      camera.lookAt(scene.position);
+    }
+    function loop(){ if(!running) return; step(); renderer.render(scene,camera); if(running) requestAnimationFrame(loop); }
+    if(reduced){ step(); renderer.render(scene,camera); } else { loop(); }
+  }
+
+  // boot once libs have had a chance to load (they are deferred)
+  window.addEventListener('load', function(){
+    initThree();
+    initGSAP();
+    if(reduced){ runCounters(); runBars(); }
+    setTimeout(drawEntLines, 60);
+    window.addEventListener('resize', function(){ clearTimeout(window.__er); window.__er=setTimeout(drawEntLines,150); });
+  });
+})();
+</script>
+
+<!-- ===== Theatre.js: best-effort ambient layer (optional; GSAP provides the visible fallback) ===== -->
+<script type="module">
+(async function(){
+  try{
+    var core = await import('https://esm.sh/@theatre/core@0.7.2');
+    var getProject = core.getProject, types = core.types;
+    var state = {
+      sheetsById:{ Hero:{ staticOverrides:{ byObject:{} },
+        sequence:{ subUnitsPerUnit:30, length:4, type:'PositionalSequence',
+          tracksByObject:{ Halo:{ trackData:{ t1:{ type:'BasicKeyframedTrack', __debugName:'Halo:["drift"]',
+            keyframes:[
+              {id:'k1',position:0,connectedRight:true,handles:[.5,1,.5,0],type:'bezier',value:-10},
+              {id:'k2',position:2,connectedRight:true,handles:[.5,1,.5,0],type:'bezier',value:12},
+              {id:'k3',position:4,connectedRight:true,handles:[.5,1,.5,0],type:'bezier',value:-10}
+            ] } },
+            trackIdByPropPath:{ '["drift"]':'t1' } } } } } },
+      definitionVersion:'0.4.0', revisionHistory:[] };
+    var project = getProject('Braidenhill Console', { state: state });
+    var sheet = project.sheet('Hero');
+    var halo = sheet.object('Halo', { drift: types.number(0,{range:[-30,30]}) });
+    halo.onValuesChange(function(v){
+      var el=document.querySelector('.hero__halo');
+      if(el) el.style.transform='translateY('+v.drift+'px)';
+    });
+    await project.ready;
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(!reduced && sheet.sequence) sheet.sequence.play({iterationCount:Infinity});
+  }catch(e){ /* Theatre.js optional — GSAP ambient already runs */ }
+})();
+</script>
+</body>
+</html>
